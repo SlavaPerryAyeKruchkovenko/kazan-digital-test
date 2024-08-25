@@ -33,7 +33,7 @@ export class CesiumService {
       for (let i = 0; i < totalTiles; i++) {
         tilesetColors.set(i, this.getRandomColor());
       }
-      const style = new Cesium.Cesium3DTileStyle({
+      tileset.style = new Cesium.Cesium3DTileStyle({
         color: {
           conditions: [
             [true, this.getRandomColor()],
@@ -44,8 +44,7 @@ export class CesiumService {
         labelFillColor: 'rgba(255, 0, 0, 1)', // Сделать цвет лейбла ярким для проверки видимости
         labelOutlineColor: 'rgba(255, 255, 255, 1)', // Обводка, чтобы лейбл был заметнее
         labelOutlineWidth: 10
-      })
-      tileset.style = style;
+      });
     }
   }
 
