@@ -12,72 +12,111 @@ export class CesiumService {
 
   private viewer: any;
   private handler: any
+  private defaultColor = Cesium.Color.RED.withAlpha(0.1)
+  private changeEntity: Cesium.Entity | null = null
+  private changeColor: any = null
 
   async plotPoints(div: string) {
     this.viewer = new Cesium.Viewer(div);
     this.handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
-    try {
-      const tileset = await Cesium.createGooglePhotorealistic3DTileset();
-      this.viewer.scene.primitives.add(tileset);
-    } catch (error) {
-      console.log(`Error creating tileset: ${error}`);
+
+    for (let i = 0; i < 20; i++) {
+      const rectangle = this.getRandomRectangle(i);
+      const ellipsoid = Cesium.Ellipsoid.WGS84
+      const rectangleCenter = Cesium.Rectangle.center(rectangle)
+      const unNormalizeCenter = ellipsoid.cartographicToCartesian(rectangleCenter)
+      //const center = ellipsoid.getSurfaceNormalIntersectionWithZAxis(unNormalizeCenter)
+      this.viewer.entities.add({
+        id: i.toString(),
+        rectangle: {
+          coordinates: rectangle,
+          material: this.defaultColor,
+        },
+        position: unNormalizeCenter,
+        label: {
+          show: true,
+          text: `${new Date().toLocaleDateString("en-US")}`,
+          scale: 1.0,
+          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+          verticalOrigin: Cesium.VerticalOrigin.TOP,
+          font: '12px Helvetica',
+          fillColor: Cesium.Color.YELLOW,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 1,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          pixelOffset: new Cesium.Cartesian2(-15, -5)
+        }
+      });
+      this.viewer.zoomTo(this.viewer.entities);
     }
   }
 
   randomizeTilesColor() {
-    const tileset = this.viewer.scene.primitives.get(0);
-    if (tileset) {
-      this.setupMouseEvents(tileset)
-      const tilesetColors = new Map<number, string>()
-      const totalTiles = 2000
-      for (let i = 0; i < totalTiles; i++) {
-        tilesetColors.set(i, this.getRandomColor());
-      }
-      tileset.style = new Cesium.Cesium3DTileStyle({
-        color: {
-          conditions: [
-            [true, this.getRandomColor()],
-          ]
-        },
-        labelText: `"Current timestamp: ${Date.now()}"`, // Добавить текст для проверки
-        labelVerticalOrigin: Cesium.VerticalOrigin.CENTER,
-        labelFillColor: 'rgba(255, 0, 0, 1)', // Сделать цвет лейбла ярким для проверки видимости
-        labelOutlineColor: 'rgba(255, 255, 255, 1)', // Обводка, чтобы лейбл был заметнее
-        labelOutlineWidth: 10
-      });
-    }
+    this.addHoverEffect()
+    this.viewer.entities.values.forEach((entity: Cesium.Entity) => {
+      //@ts-ignore
+      entity.rectangle.material = this.getRandomColor()
+      //@ts-ignore
+      entity.label.show = true
+    })
   }
 
   resetTileColor() {
-    const tileset = this.viewer.scene.primitives.get(0);
-    this.resetMouseEvent()
-    if (tileset) {
-      tileset.style = undefined
-    }
+    this.handler.removeInputAction(Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+    this.viewer.entities.values.forEach((entity: Cesium.Entity) => {
+      //@ts-ignore
+      entity.rectangle.material = this.defaultColor
+      //@ts-ignore
+      entity.label.show = false
+    })
   }
 
-  setupMouseEvents(tileset: Cesium.Cesium3DTileset) {
+  private addHoverEffect() {
     this.handler.setInputAction((movement: {
       startPosition: Cesium.Cartesian2,
       endPosition: Cesium.Cartesian2
     }) => {
-      const pickedTile = this.viewer.scene.pick(movement.endPosition)
-      if(pickedTile?.content?._tile && Cesium.defined(pickedTile.content?._tile)){
-        const tile = pickedTile?.content?._tile
-        /*console.log(tile?.extras )*/
+      const pickedObject = this.viewer.scene.pick(movement.endPosition);
+      if (this.changeEntity != null && this.changeColor != null) {
+        //@ts-ignore
+        this.changeEntity.rectangle.material = this.changeColor
+        this.changeEntity = null
+        this.changeColor = null
       }
-    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+      if (pickedObject?.id?.id < 20) {
+        //@ts-ignore
+        this.changeEntity = pickedObject?.id
+        //@ts-ignore
+        this.changeColor = this.changeEntity.rectangle.material
+        //@ts-ignore
+        this.changeEntity.rectangle.material = Cesium.Color.BLACK
+      }
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
   }
 
-  resetMouseEvent() {
-    this.handler.removeInputAction(Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+  private getRandomRectangle(index: number) {
+    const layerSize = 1
+    let step = index
+    let south = 54.2
+    let north = 55.2
+    if (index % 2 === 0) {
+      step = index / 2
+    } else {
+      south = 55.2
+      north = 56.2
+      step = (index - 1) / 2
+    }
+    const west = 61 + step
+    const east = west + layerSize
+    return Cesium.Rectangle.fromDegrees(west, south, east, north);
   }
 
   private getRandomColor() {
-    const r = Math.floor(Math.random() * 255)
-    const g = Math.floor(Math.random() * 255)
-    const b = Math.floor(Math.random() * 255)
+    const r = Math.floor(Math.random() * 255) % 255
+    const g = Math.floor(Math.random() * 255) % 255
+    const b = Math.floor(Math.random() * 255) % 255
     const a = 0.5
-    return `rgba(${r},${g},${b},${a})`
+    //Convert to 0.0 .. 1.0 for Cesium
+    return new Cesium.Color(r / 255, g / 255, b / 255, a)
   }
 }
