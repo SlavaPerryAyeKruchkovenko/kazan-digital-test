@@ -11,30 +11,74 @@ export class CesiumService {
   }
 
   private viewer: any;
+  private handler: any
 
-  plotPoints(div: string) {
-    console.log(div)
+  async plotPoints(div: string) {
     this.viewer = new Cesium.Viewer(div);
-    this.viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(-75.59777, 40.03883),
-      point: {
-        color: Cesium.Color.RED,
-        pixelSize: 16,
-      },
-    });
-    this.viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(-80.5, 35.14),
-      point: {
-        color: Cesium.Color.BLUE,
-        pixelSize: 16,
-      },
-    });
-    this.viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(-80.12, 25.46),
-      point: {
-        color: Cesium.Color.YELLOW,
-        pixelSize: 16,
-      },
-    });
+    this.handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
+    try {
+      const tileset = await Cesium.createGooglePhotorealistic3DTileset();
+      this.viewer.scene.primitives.add(tileset);
+    } catch (error) {
+      console.log(`Error creating tileset: ${error}`);
+    }
+  }
+
+  randomizeTilesColor() {
+    const tileset = this.viewer.scene.primitives.get(0);
+    if (tileset) {
+      this.setupMouseEvents(tileset)
+      const tilesetColors = new Map<number, string>()
+      const totalTiles = 2000
+      for (let i = 0; i < totalTiles; i++) {
+        tilesetColors.set(i, this.getRandomColor());
+      }
+      const style = new Cesium.Cesium3DTileStyle({
+        color: {
+          conditions: [
+            [true, this.getRandomColor()],
+          ]
+        },
+        labelText: `"Current timestamp: ${Date.now()}"`, // Добавить текст для проверки
+        labelVerticalOrigin: Cesium.VerticalOrigin.CENTER,
+        labelFillColor: 'rgba(255, 0, 0, 1)', // Сделать цвет лейбла ярким для проверки видимости
+        labelOutlineColor: 'rgba(255, 255, 255, 1)', // Обводка, чтобы лейбл был заметнее
+        labelOutlineWidth: 10
+      })
+      tileset.style = style;
+    }
+  }
+
+  resetTileColor() {
+    const tileset = this.viewer.scene.primitives.get(0);
+    this.resetMouseEvent()
+    if (tileset) {
+      tileset.style = undefined
+    }
+  }
+
+  setupMouseEvents(tileset: Cesium.Cesium3DTileset) {
+    this.handler.setInputAction((movement: {
+      startPosition: Cesium.Cartesian2,
+      endPosition: Cesium.Cartesian2
+    }) => {
+      const pickedTile = this.viewer.scene.pick(movement.endPosition)
+      if(pickedTile?.content?._tile && Cesium.defined(pickedTile.content?._tile)){
+        const tile = pickedTile?.content?._tile
+        /*console.log(tile?.extras )*/
+      }
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+  }
+
+  resetMouseEvent() {
+    this.handler.removeInputAction(Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+  }
+
+  private getRandomColor() {
+    const r = Math.floor(Math.random() * 255)
+    const g = Math.floor(Math.random() * 255)
+    const b = Math.floor(Math.random() * 255)
+    const a = 0.5
+    return `rgba(${r},${g},${b},${a})`
   }
 }

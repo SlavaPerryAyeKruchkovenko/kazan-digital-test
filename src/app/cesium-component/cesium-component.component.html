@@ -1,1 +1,7 @@
 <div id="cesium"></div>
+<div class="color-button"
+     [ngClass]="{'select-color-button': isRandomized}"
+     (click)="toggleRandomize()">
+  <span>Randomize</span>
+</div>
+
