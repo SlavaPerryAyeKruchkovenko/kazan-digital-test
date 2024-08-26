@@ -34,7 +34,7 @@ export class CesiumService {
         },
         position: unNormalizeCenter,
         label: {
-          show: true,
+          show: false,
           text: `${new Date().toLocaleDateString("en-US")}`,
           scale: 1.0,
           horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
